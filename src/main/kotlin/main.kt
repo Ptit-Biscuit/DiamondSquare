@@ -6,34 +6,24 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.random.Random
 
-class Square(val startPos: IntVector2, n: Int, size: Int) {
-    val topRightCorner = IntVector2((startPos.x + size) % n, startPos.y)
-    val bottomRightCorner = IntVector2((startPos.x + size) % n, (startPos.y + size) % n)
-    val bottomLeftCorner = IntVector2(startPos.x, (startPos.y + size) % n)
 
-    val midPoint = IntVector2(
-        (startPos.x + topRightCorner.x + bottomRightCorner.x + bottomLeftCorner.x) / 4,
-        (startPos.y + topRightCorner.y + bottomRightCorner.y + bottomLeftCorner.y) / 4
-    )
-}
+tailrec fun diamondStep(points: MutableList<Double>, n: Int, step: Int) {
+    (0 until n - 1 step step).forEach { x ->
+        (0 until n - 1 step step).forEach { y ->
+            val startPos = x + n * y
+            val topRightCorner = startPos + if (n == step) step - 1 else step
+            val bottomLeftCorner = startPos + if (n == step) step * (step - 1) else n * step
+            val bottomRightCorner = startPos + if (n == step) step * step - 1 else (n * step) + step
+            val midPoint = (startPos + bottomRightCorner) / 2
 
-fun diamondStep(points: MutableList<Double>, n: Int, step: Int) {
-    (0 until n - 1 step step).forEach { xStep ->
-        (0 until n - 1 step step).toList().parallelStream().forEach { yStep ->
-            val square = Square(IntVector2(xStep, yStep), n, step)
+            points[midPoint] = ((points[startPos] + points[topRightCorner] + points[bottomLeftCorner] + points[bottomRightCorner]) / 4) + Random.nextDouble(360.0) % 360
 
-            points[square.midPoint.x + n * square.midPoint.y] = (
-                    (
-                            points[square.startPos.x + n * square.startPos.y]
-                                    + points[square.topRightCorner.x + n * square.topRightCorner.y]
-                                    + points[square.bottomRightCorner.x + n * square.bottomRightCorner.y]
-                                    + points[square.bottomLeftCorner.x + n * square.bottomLeftCorner.y]
-                            ) / 4
-                    ) + Random.nextDouble(360.0) % 360
-
-            squareStep(points, n, step, square.midPoint)
+            squareStep(points, n, step, IntVector2(midPoint / n, midPoint % n))
         }
     }
+
+    if (step > 2)
+        diamondStep(points, n, step / 2)
 }
 
 fun squareStep(points: MutableList<Double>, n: Int, step: Int, centerPoint: IntVector2) {
@@ -89,7 +79,7 @@ fun squareStep(points: MutableList<Double>, n: Int, step: Int, centerPoint: IntV
 }
 
 fun main() = application {
-    val n = (2.0.pow(7) + 1).toInt()
+    val n = (2.0.pow(5) + 1).toInt()
 
     program {
         configure {
@@ -103,8 +93,8 @@ fun main() = application {
 
         points[0] = Random.nextDouble(360.0)
         points[n - 1] = Random.nextDouble(360.0)
-        points[(n - 1) * (n - 1)] = Random.nextDouble(360.0)
         points[n * (n - 1)] = Random.nextDouble(360.0)
+        points[n * n - 1] = Random.nextDouble(360.0)
 
         diamondStep(points, n, n)
 
@@ -119,14 +109,14 @@ fun main() = application {
         }
 
         extend {
-            drawer.image(cb)
+            // drawer.image(cb)
 
-            /*(0 until n).forEach { x ->
+            (0 until n).forEach { x ->
                 (0 until n).forEach { y ->
                     drawer.fill = ColorHSVa(points[x + n * y], .5, 1.0).toRGBa()
                     drawer.circle((x * (width / (n - 1))).toDouble(), (y * (height / (n - 1))).toDouble(), 4.0)
                 }
-            }*/
+            }
         }
     }
 }

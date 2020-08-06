@@ -2,19 +2,22 @@ import org.openrndr.application
 import org.openrndr.color.ColorHSVa
 import org.openrndr.color.ColorRGBa
 import org.openrndr.math.IntVector2
+import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.random.Random
 
 tailrec fun diamondStepTest(points: MutableList<Double>, n: Int, step: Int) {
-    (0 until n - 1 step step).forEach { xStep ->
-        (0 until n - 1 step step).forEach { yStep ->
-            val startPos = xStep * n + yStep
-            val topRightCorner = xStep * (n - 1) + yStep
-            val bottomRightCorner = xStep * (n - 1) + yStep * (n - 1)
-            val bottomLeftCorner = xStep * n + yStep * (n - 1)
-            val midPoint = (startPos + topRightCorner + bottomRightCorner + bottomLeftCorner) / 4
+    (0 until n - 1 step step).forEach { x ->
+        (0 until n - 1 step step).forEach { y ->
+            val startPos = x * n + y
+            val topRightCorner = startPos + if (n == step) step - 1 else step
+            val bottomLeftCorner = startPos + if (n == step) step * (step - 1) else n * step
+            val bottomRightCorner = startPos + if (n == step) step * step - 1 else (n * step) + step
+            val midPoint = (startPos + bottomRightCorner) / 2
 
-            points[midPoint] = ((points[startPos] + points[topRightCorner] + points[bottomRightCorner] + points[bottomLeftCorner]) / 4) + Random.nextDouble(360.0) % 360
+            points[midPoint] = ((points[startPos] + points[topRightCorner] + points[bottomLeftCorner] + points[bottomRightCorner]) / 4) + Random.nextDouble(360.0) % 360
+
+            squareStepTest(points, n, step, midPoint)
         }
     }
 
@@ -22,8 +25,55 @@ tailrec fun diamondStepTest(points: MutableList<Double>, n: Int, step: Int) {
         diamondStepTest(points, n, step / 2)
 }
 
+fun squareStepTest(points: MutableList<Double>, n: Int, step: Int, midPoint: Int) {
+    val two = midPoint // abs(centerPoint.x - step / 2) * n + abs(centerPoint.y - step / 2)
+    val three = midPoint // (centerPoint.x + step / 2) * n + abs(centerPoint.y - step / 2)
+    val four = midPoint // (centerPoint.x + step / 2) * n + (centerPoint.y + step / 2)
+    val five = midPoint // abs(centerPoint.x - step / 2) * n + (centerPoint.y + step / 2)
+
+    // above
+    points[midPoint] = (
+            (
+                    points[midPoint]
+                            + points[two]
+                            + points[midPoint] // centerPoint.x + ((n * abs(centerPoint.y - step)) % n)
+                            + points[three]
+                    ) / 4
+            ) + Random.nextDouble(360.0) % 360
+
+    // right
+    points[midPoint] = ( // ((centerPoint.x + step / 2) % n) + n * centerPoint.y
+            (
+                    points[midPoint]
+                            + points[three]
+                            + points[midPoint] // ((centerPoint.x + step) % n) + n * centerPoint.y
+                            + points[four]
+                    ) / 4
+            ) + Random.nextDouble(360.0) % 360
+
+    // below
+    points[midPoint] = ( // centerPoint.x + ((n * (centerPoint.y + step / 2)) % n)
+            (
+                    points[midPoint]
+                            + points[four]
+                            + points[midPoint] // centerPoint.x + ((n * abs(centerPoint.y + step)) % n)
+                            + points[five]
+                    ) / 4
+            ) + Random.nextDouble(360.0) % 360
+
+    // left
+    points[midPoint] = ( // (abs(centerPoint.x - step / 2) % n) + n * centerPoint.y
+            (
+                    points[midPoint]
+                            + points[five]
+                            + points[midPoint] // (abs(centerPoint.x - step) % n) + n * centerPoint.y
+                            + points[two]
+                    ) / 4
+            ) + Random.nextDouble(360.0) % 360
+}
+
 fun main() = application {
-    val n = ((2.0.pow(5)) + 1).toInt()
+    val n = ((2.0.pow(2)) + 1).toInt()
 
     program {
         configure {
