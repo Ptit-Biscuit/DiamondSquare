@@ -6,117 +6,115 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.random.Random
 
+data class Node(var color: Double = .0, var set: Boolean = false)
 
-tailrec fun diamondStep(points: MutableList<Double>, n: Int, step: Int) {
-    (0 until n - 1 step step).forEach { x ->
-        (0 until n - 1 step step).forEach { y ->
-            val startPos = x + n * y
-            val topRightCorner = startPos + if (n == step) step - 1 else step
-            val bottomLeftCorner = startPos + if (n == step) step * (step - 1) else n * step
-            val bottomRightCorner = startPos + if (n == step) step * step - 1 else (n * step) + step
-            val midPoint = (startPos + bottomRightCorner) / 2
+class SquareBis(val startPos: IntVector2, size: Int) {
+    val topRightCorner = IntVector2(startPos.x + size, startPos.y)
+    val bottomRightCorner = IntVector2(startPos.x + size, startPos.y + size)
+    val bottomLeftCorner = IntVector2(startPos.x, startPos.y + size)
 
-            points[midPoint] = ((points[startPos] + points[topRightCorner] + points[bottomLeftCorner] + points[bottomRightCorner]) / 4) + Random.nextDouble(360.0) % 360
+    val midPoint = IntVector2(
+        (startPos.x + topRightCorner.x + bottomRightCorner.x + bottomLeftCorner.x) / 4,
+        (startPos.y + topRightCorner.y + bottomRightCorner.y + bottomLeftCorner.y) / 4
+    )
+}
 
-            squareStep(points, n, step, IntVector2(midPoint / n, midPoint % n))
+tailrec fun diamondStepToto(points: MutableList<MutableList<Node>>, step: Int) {
+    (0 until points.size - 1 step step).forEach { xStep ->
+        (0 until points[xStep].size - 1 step step).forEach { yStep ->
+            val square = SquareBis(IntVector2(xStep, yStep), step)
+            val midPoint = square.midPoint
+
+            points[midPoint.x][midPoint.y].color =
+                ((points[square.startPos.x][square.startPos.y].color
+                        + points[square.topRightCorner.x % points.size][square.topRightCorner.y % points.size].color
+                        + points[square.bottomRightCorner.x % points.size][square.bottomRightCorner.y % points.size].color
+                        + points[square.bottomLeftCorner.x % points.size][square.bottomLeftCorner.y % points.size].color) / 4)
+            +Random.nextDouble(360.0) % 360
+            points[midPoint.x][midPoint.y].set = true
+
+            squareStep(points, step, midPoint)
         }
     }
 
-    if (step > 2)
-        diamondStep(points, n, step / 2)
+    if (step > 2) {
+        diamondStepToto(points, step / 2)
+    }
 }
 
-fun squareStep(points: MutableList<Double>, n: Int, step: Int, centerPoint: IntVector2) {
-    val one = centerPoint.x + n * centerPoint.y
-    val two = (abs(centerPoint.x - step / 2) % n) + ((n * abs(centerPoint.y - step / 2)) % n)
-    val three = ((centerPoint.x + step / 2) % n) + ((n * abs(centerPoint.y - step / 2)) % n)
-    val four = ((centerPoint.x + step / 2) % n) + ((n * (centerPoint.y + step / 2)) % n)
-    val five = (abs(centerPoint.x - step / 2) % n) + ((n * (centerPoint.y + step / 2)) % n)
-
+fun squareStep(points: MutableList<MutableList<Node>>, step: Int, centerPoint: IntVector2) {
     // above
-    points[centerPoint.x + ((n * abs(centerPoint.y - step / 2)) % n)] = (
-            (
-                    points[one]
-                            + points[two]
-                            + points[centerPoint.x + ((n * abs(centerPoint.y - step)) % n)]
-                            + points[three]
-                    ) / 4
-            ) + Random.nextDouble(360.0) % 360
+    val pointAbove = points[centerPoint.x][centerPoint.y - step / 2]
+    pointAbove.color =
+        ((points[centerPoint.x][centerPoint.y].color +
+                points[abs(centerPoint.x - step / 2) % points.size][abs(centerPoint.y - step / 2) % points.size].color +
+                points[centerPoint.x][abs(centerPoint.y - step) % points.size].color +
+                points[abs(centerPoint.x + step / 2) % points.size][abs(centerPoint.y - step / 2) % points.size].color) / 4)
+    +Random.nextDouble(360.0) % 360
+    pointAbove.set = true
 
     // right
-    points[((centerPoint.x + step / 2) % n) + n * centerPoint.y] = (
-            (
-                    points[one]
-                            + points[three]
-                            + points[((centerPoint.x + step) % n) + n * centerPoint.y]
-                            + points[four]
-                    ) / 4
-            ) + Random.nextDouble(360.0) % 360
+    val pointRight = points[centerPoint.x + step / 2][centerPoint.y]
+    pointRight.color =
+        ((points[centerPoint.x][centerPoint.y].color +
+                points[abs(centerPoint.x + step / 2) % points.size][abs(centerPoint.y - step / 2) % points.size].color +
+                points[abs(centerPoint.x + step) % points.size][centerPoint.y].color +
+                points[abs(centerPoint.x + step / 2) % points.size][abs(centerPoint.y + step / 2) % points.size].color) / 4)
+    +Random.nextDouble(360.0) % 360
+    pointRight.set = true
 
     // below
-    points[centerPoint.x + ((n * (centerPoint.y + step / 2)) % n)] = (
-            (
-                    points[one]
-                            + points[four]
-                            + points[centerPoint.x + ((n * abs(centerPoint.y + step)) % n)]
-                            + points[five]
-                    ) / 4
-            ) + Random.nextDouble(360.0) % 360
+    val pointBelow = points[centerPoint.x][centerPoint.y + step / 2]
+    pointBelow.color =
+        ((points[centerPoint.x][centerPoint.y].color +
+                points[abs(centerPoint.x + step / 2) % points.size][abs(centerPoint.y + step / 2) % points.size].color +
+                points[centerPoint.x][abs(centerPoint.y + step) % points.size].color +
+                points[abs(centerPoint.x - step / 2) % points.size][abs(centerPoint.y + step / 2) % points.size].color) / 4)
+    +Random.nextDouble(360.0) % 360
+    pointBelow.set = true
 
     // left
-    points[(abs(centerPoint.x - step / 2) % n) + n * centerPoint.y] = (
-            (
-                    points[one]
-                            + points[five]
-                            + points[(abs(centerPoint.x - step) % n) + n * centerPoint.y]
-                            + points[two]
-                    ) / 4
-            ) + Random.nextDouble(360.0) % 360
-
-    if (step > 2) {
-        diamondStep(points, n, step / 2)
-    }
+    val pointLeft = points[centerPoint.x - step / 2][centerPoint.y]
+    pointLeft.color =
+        ((points[centerPoint.x][centerPoint.y].color +
+                points[abs(centerPoint.x - step / 2) % points.size][abs(centerPoint.y + step / 2) % points.size].color +
+                points[abs(centerPoint.x - step) % points.size][centerPoint.y].color +
+                points[abs(centerPoint.x - step / 2) % points.size][abs(centerPoint.y - step / 2) % points.size].color) / 4)
+    +Random.nextDouble(360.0) % 360
+    pointLeft.set = true
 }
 
 fun main() = application {
-    val n = (2.0.pow(5) + 1).toInt()
+    val n = (2.0.pow(9) + 1).toInt()
 
     program {
         configure {
-            width = n
-            height = n
+            width = 900
+            height = 900
         }
 
-        val cb = colorBuffer(width, height)
+        val points = MutableList(n) { MutableList(n) { Node() } }
+        val cb = colorBuffer(n, n)
 
-        val points = MutableList(n * n) { .0 }
+        points[0][0] = Node(Random.nextDouble(360.0), true)
+        points[n - 1][0] = Node(Random.nextDouble(360.0), true)
+        points[0][n - 1] = Node(Random.nextDouble(360.0), true)
+        points[n - 1][n - 1] = Node(Random.nextDouble(360.0), true)
 
-        points[0] = Random.nextDouble(360.0)
-        points[n - 1] = Random.nextDouble(360.0)
-        points[n * (n - 1)] = Random.nextDouble(360.0)
-        points[n * n - 1] = Random.nextDouble(360.0)
-
-        diamondStep(points, n, n)
+        diamondStepToto(points, n)
 
         cb.shadow.let {
             it.download()
             (0 until n).forEach { x ->
                 (0 until n).forEach { y ->
-                    it[x, y] = ColorHSVa(points[x + n * y], .5, 1.0).toRGBa()
+                    it[x, y] = ColorHSVa(points[x][y].color, .5, 1.0).toRGBa()
                 }
             }
             it.upload()
         }
 
         extend {
-            // drawer.image(cb)
-
-            (0 until n).forEach { x ->
-                (0 until n).forEach { y ->
-                    drawer.fill = ColorHSVa(points[x + n * y], .5, 1.0).toRGBa()
-                    drawer.circle((x * (width / (n - 1))).toDouble(), (y * (height / (n - 1))).toDouble(), 4.0)
-                }
-            }
+            drawer.image(cb)
         }
     }
 }
