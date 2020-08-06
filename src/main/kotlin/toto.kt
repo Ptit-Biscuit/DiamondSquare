@@ -1,6 +1,6 @@
 import org.openrndr.application
 import org.openrndr.color.ColorHSVa
-import org.openrndr.color.ColorRGBa
+import org.openrndr.draw.colorBuffer
 import org.openrndr.math.IntVector2
 import kotlin.math.abs
 import kotlin.math.pow
@@ -19,7 +19,7 @@ class SquareBis(val startPos: IntVector2, size: Int) {
     )
 }
 
-fun diamondStep(points: MutableList<MutableList<Node>>, step: Int) {
+tailrec fun diamondStepToto(points: MutableList<MutableList<Node>>, step: Int) {
     (0 until points.size - 1 step step).forEach { xStep ->
         (0 until points[xStep].size - 1 step step).forEach { yStep ->
             val square = SquareBis(IntVector2(xStep, yStep), step)
@@ -35,6 +35,10 @@ fun diamondStep(points: MutableList<MutableList<Node>>, step: Int) {
 
             squareStep(points, step, midPoint)
         }
+    }
+
+    if (step > 2) {
+        diamondStepToto(points, step / 2)
     }
 }
 
@@ -78,38 +82,39 @@ fun squareStep(points: MutableList<MutableList<Node>>, step: Int, centerPoint: I
                 points[abs(centerPoint.x - step / 2) % points.size][abs(centerPoint.y - step / 2) % points.size].color) / 4)
     +Random.nextDouble(360.0) % 360
     pointLeft.set = true
-
-    if (step > 2 && points.any { nodeList -> nodeList.any { node -> !node.set } }) {
-        diamondStep(points, step / 2)
-    }
 }
 
 fun main() = application {
-    val n = (2.0.pow(5) + 1).toInt()
+    val n = (2.0.pow(9) + 1).toInt()
 
     program {
         configure {
             width = 900
-            height = 600
+            height = 900
         }
 
         val points = MutableList(n) { MutableList(n) { Node() } }
+        val cb = colorBuffer(n, n)
 
         points[0][0] = Node(Random.nextDouble(360.0), true)
         points[n - 1][0] = Node(Random.nextDouble(360.0), true)
         points[0][n - 1] = Node(Random.nextDouble(360.0), true)
         points[n - 1][n - 1] = Node(Random.nextDouble(360.0), true)
 
+        diamondStepToto(points, n)
 
-        diamondStep(points, n)
-
-        extend {
-            points.forEachIndexed { ix, _ ->
-                points[ix].forEachIndexed { iy, value ->
-                    drawer.fill = ColorHSVa(value.color, .5, 1.0).toRGBa()
-                    drawer.circle((ix * (width / (n - 1))).toDouble(), (iy * (height / (n - 1))).toDouble(), 4.0)
+        cb.shadow.let {
+            it.download()
+            (0 until n).forEach { x ->
+                (0 until n).forEach { y ->
+                    it[x, y] = ColorHSVa(points[x][y].color, .5, 1.0).toRGBa()
                 }
             }
+            it.upload()
+        }
+
+        extend {
+            drawer.image(cb)
         }
     }
 }
